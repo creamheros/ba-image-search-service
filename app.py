@@ -114,7 +114,7 @@ def delete():
 
 def postprocess_doc(doc):
     if "student" not in doc:
-        return
+        return {"student_info": [], **doc}
     all_student_keywords = []
     for student in doc["student"]:
         if student not in student_info:
