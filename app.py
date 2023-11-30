@@ -37,25 +37,38 @@ schools = set()
 student_info = {}
 with open("data/students.json", "r") as f:
     raw_data = json.load(f)
-    for student in raw_data:
-        name_en = student["name"]["en"]
-        student_info[name_en] = student
-        special_words.add(student["name"]["en"].lower())
-        special_words.add(student["name"]["cn"].lower())
-        special_words.add(student["familyName"]["en"].lower())
-        special_words.add(student["familyName"]["cn"].lower())
-        names.add(student["name"]["en"].lower())
-        names.add(student["name"]["cn"].lower())
-        names.add(student["familyName"]["en"].lower())
-        names.add(student["familyName"]["cn"].lower())
-        special_words.add(student["club"].lower())
-        clubs.add(student["club"].lower())
-        special_words.add(student["affiliation"].lower())
-        special_words.add(student["schoolCode"].lower())
-        schools.add(student["affiliation"].lower())
-        schools.add(student["schoolCode"].lower())
-        for nickname in student["nickname"]:
-            special_words.add(nickname.lower())
+for student in raw_data:
+    name_en = student["name"]["en"]
+    student_info[name_en] = student
+    name_en = name_en.lower()
+    name_cn = student["name"]["cn"].lower()
+    family_name_en = student["familyName"]["en"].lower()
+    family_name_cn = student["familyName"]["cn"].lower()
+    club = student["club"].lower()
+    affiliation = student["affiliation"].lower()
+    school_code = student["schoolCode"].lower()
+    special_words.update(
+        [
+            name_en,
+            name_cn,
+            family_name_en,
+            family_name_cn,
+            club,
+            affiliation,
+            school_code,
+        ]
+    )
+    names.update(
+        [
+            name_en, 
+            name_cn, 
+            family_name_en, 
+            family_name_cn
+        ]
+    )
+    clubs.add(club)
+    schools.update([affiliation, school_code])
+    special_words.update(nickname.lower() for nickname in student["nickname"])
 for word in special_words:
     jieba.add_word(word)
 
@@ -107,16 +120,18 @@ def postprocess_doc(doc):
         if student not in student_info:
             continue
         info = student_info[student]
-        # app.logger.info(info)
-        all_student_keywords.append(student)
-        all_student_keywords.append(info["name"]["cn"])  # CN name
-        all_student_keywords.append(info["familyName"]["en"])  # EN family name
-        all_student_keywords.append(info["familyName"]["cn"])  # CN family name
-        all_student_keywords.append(info["club"])
-        all_student_keywords.append(info["affiliation"])
-        all_student_keywords.append(info["schoolCode"])
-        for nickname in info["nickname"]:
-            all_student_keywords.append(nickname)
+        all_student_keywords.extend(
+            [
+                student,
+                info["name"]["cn"],  # CN name
+                info["familyName"]["en"],  # EN family name
+                info["familyName"]["cn"],  # CN family name
+                info["club"],
+                info["affiliation"],
+                info["schoolCode"],
+                *info["nickname"],
+            ]
+        )
     doc["student_info"] = [x.lower() for x in cut_keywords(all_student_keywords)]
 
 
@@ -138,6 +153,7 @@ def add_data():
 @app.route("/doc/<id>", methods=["GET"])
 def get_doc(id):
     """Get a document by id."""
+
     def process_fn(body):
         return {"_id": body["_id"], "found": body["found"], **body.get("_source", {})}
 
@@ -159,12 +175,13 @@ def update_doc(id):
 @app.route("/search", methods=["POST"])
 def search():
     """Search for documents in Chinese."""
+
     def process_fn(body):
         hits = body["hits"]["hits"]
         return [x["_id"] for x in hits]
 
     data = request.get_json()
-    query = data["query"]
+    query = data["query"].lower()
     app.logger.info(query)
     query_tokens = list(jieba.cut(query))
     query_tokens_text = [x for x in query_tokens if x not in special_words]
