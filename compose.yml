@@ -1,0 +1,22 @@
+services:
+  app:
+    image: python:3.9.18-slim
+    command: sh -c "pip install -r requirements.txt && flask run --host=0.0.0.0 --debug"
+    ports:
+      - 5001:5000
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      ES_HOST: elasticsearch
+      ES_PORT: 9200
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+
+volumes:
+  esdata1:
