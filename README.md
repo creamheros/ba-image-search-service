@@ -2,9 +2,9 @@
 
 ## Prepare the environment
 
-This service uses Python, Flask, Elasticsearch, and uses Docker to pack them up.
+This project uses Python, Flask, Elasticsearch, and uses Docker to pack them up.
 
-Run `docker compose` to set up the environment and start the service:
+Run `docker compose` to build and start the app:
 
 ```bash
 docker compose up -d

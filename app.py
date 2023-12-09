@@ -74,10 +74,10 @@ for word in special_words:
 
 
 def cut_keywords(keywords):
-    cut_keywords = []
+    cut = []
     for keyword in keywords:
-        cut_keywords.extend(list(set(list(jieba.cut_for_search(keyword)) + [keyword])))
-    return cut_keywords
+        cut.extend(list(set(list(jieba.cut_for_search(keyword)) + [keyword])))
+    return cut
 
 
 def wrap_response(response, process_fn=lambda x: x):
