@@ -24,8 +24,19 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python -m pip install -r requirements.txt
 
+# Install wget, download the CLIP model.
+RUN mkdir model
+RUN apt update -y && apt install -y wget && \
+    wget https://huggingface.co/canavar/clip-ViT-B-32-multilingual-v1-ONNX/resolve/main/config.json -O model/config.json && \
+    wget https://huggingface.co/canavar/clip-ViT-B-32-multilingual-v1-ONNX/resolve/main/model.onnx -O model/model.onnx && \
+    wget https://huggingface.co/canavar/clip-ViT-B-32-multilingual-v1-ONNX/resolve/main/tokenizer.json -O model/tokenizer.json && \
+    wget https://huggingface.co/canavar/clip-ViT-B-32-multilingual-v1-ONNX/resolve/main/tokenizer_config.json -O tokenizer_config.json && \
+    wget https://huggingface.co/canavar/clip-ViT-B-32-multilingual-v1-ONNX/resolve/main/vocab.txt -O model/vocab.txt && \
+    apt remove -y wget && apt autoremove -y
+
 # Copy the source code into the container.
-COPY . .
+COPY app.py .
+COPY data ./data
 
 # Expose the port that the application listens on.
 EXPOSE 5000

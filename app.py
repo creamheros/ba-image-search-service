@@ -1,9 +1,12 @@
 import json
 import os
+import re
 
 import jieba
+import onnxruntime as ort
 import requests
 from flask import Flask, request
+from transformers import AutoTokenizer
 
 app = Flask(__name__)
 
@@ -26,9 +29,18 @@ MAPPING = {
             "student_info": {
                 "type": "keyword",
             },
+            "vector": {
+                "type": "dense_vector",
+                "dims": 512,
+                "similarity": "cosine",
+                "index_options": {"type": "hnsw", "m": 32, "ef_construction": 200},
+            },
         }
     }
 }
+
+tokenizer = AutoTokenizer.from_pretrained("model")
+sess = ort.InferenceSession("model/model.onnx")
 
 special_words = set()
 names = set()
@@ -58,14 +70,7 @@ for student in raw_data:
             school_code,
         ]
     )
-    names.update(
-        [
-            name_en, 
-            name_cn, 
-            family_name_en, 
-            family_name_cn
-        ]
-    )
+    names.update([name_en, name_cn, family_name_en, family_name_cn])
     clubs.add(club)
     schools.update([affiliation, school_code])
     special_words.update(nickname.lower() for nickname in student["nickname"])
@@ -186,6 +191,19 @@ def search():
     query_tokens = list(jieba.cut(query))
     query_tokens_text = [x for x in query_tokens if x not in special_words]
     query_tokens_student = [x for x in query_tokens if x in special_words]
+
+    # replace names to "少女"
+    query = re.sub("|".join(names), "一位少女", query)
+    # replace clubs to "社团"
+    query = re.sub("|".join(clubs), "社团", query)
+    # replace schools to "学校"
+    query = re.sub("|".join(schools), "学校", query)
+    clip_input = tokenizer(
+        query, padding="longest", truncation=True, max_length=128, return_tensors="np"
+    ).data
+    onnx_output = sess.run(["sentence_embedding"], clip_input)
+    app.logger.info(onnx_output)
+
     response = requests.post(
         f"{ES_URL}/{INDEX_NAME}/_search",
         json={
@@ -198,8 +216,17 @@ def search():
                         {"term": {"student_info": {"value": x}}} for x in query_tokens_student
                     ],
                 }
-            }
+            },
+            "knn": {
+                "field": "vector",
+                "query_vector": onnx_output[0].tolist()[0],
+                "k": 100,
+                "num_candidates": 100,
+                "boost": 1.0,
+            },
+            "size": 100,
         },
         headers=HEADERS,
     )
+    app.logger.info(response.json())
     return wrap_response(response, process_fn)

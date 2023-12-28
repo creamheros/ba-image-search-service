@@ -37,6 +37,9 @@ if __name__ == "__main__":
     with open("detected_students.json", "r") as f:
         detected_students = json.load(f)
 
+    with open("clip_features.json", "r") as f:
+        clip_features = json.load(f)
+
     with open("llm_features.json", "r") as fin:
         llm_features_data = json.load(fin)
         final_data = []
@@ -67,6 +70,7 @@ if __name__ == "__main__":
             # print(all_student_keywords)
             es_doc["text"] = " ".join(list(set(all_llm_keywords)))
             es_doc["student"] = all_student_keywords
+            es_doc["vector"] = clip_features.get(id_, [])
             final_data.append(es_doc)
     
     with open("bulk_docs.json", "w") as fout:
